@@ -85,21 +85,57 @@ void snakeToFood(vector<vector<int>> &vec, int &snakeXpos, int &snakeYpos, char 
     int foodY = pos.first;  // row
     int foodX = pos.second; // col
 
-    while (snakeYpos != foodY)   // vertical move
+    int row = vec.size();
+    int col = vec[0].size();
+
+    while (snakeYpos != foodY) // vertical move
     {
+        int currXpos = snakeXpos;
         int currYpos = snakeYpos;
 
         if (snakeYpos > foodY && direction == 'D')
         {
-            if (snakeXpos > foodX) direction = 'L';
-            else direction = 'R';
-            break;
+            if (snakeXpos > foodX)
+                direction = 'L';
+            else if (snakeXpos < foodX)
+                direction = 'R';
+            else
+            {
+                currXpos = snakeXpos;
+                if ((snakeXpos - 1) >= 0)
+                {
+                    direction = 'L';
+                    snakeXpos--;
+                }
+                else if ((snakeXpos + 1) < col)
+                {
+                    direction = 'R';
+                    snakeXpos++;
+                }
+            }
+
         }
         else if (snakeYpos < foodY && direction == 'U')
         {
-            if (snakeXpos > foodX) direction = 'L';
-            else direction = 'R';
-            break;
+            if (snakeXpos > foodX)
+                direction = 'L';
+            else if (snakeXpos < foodX)
+                direction = 'R';
+            else
+            {
+                currXpos = snakeXpos;
+                if ((snakeXpos - 1) >= 0)
+                {
+                    direction = 'L';
+                    snakeXpos--;
+                }
+                else if ((snakeXpos + 1) < col)
+                {
+                    direction = 'R';
+                    snakeXpos++;
+                }
+            }
+            
         }
         else if (snakeYpos > foodY && (direction == 'R' || direction == 'L' || direction == 'U'))
         {
@@ -113,27 +149,61 @@ void snakeToFood(vector<vector<int>> &vec, int &snakeXpos, int &snakeYpos, char 
         }
 
         vec[snakeYpos][snakeXpos] = 1;
-        vec[currYpos][snakeXpos] = 0;
+        vec[currYpos][currXpos] = 0;
         printGrid(vec);
         this_thread::sleep_for(chrono::seconds(2));
-        cout << endl << endl;
+        cout << endl
+             << endl;
     }
 
-    while (snakeXpos != foodX)   // horizontal move
+    while (snakeXpos != foodX) // horizontal move
     {
         int currXpos = snakeXpos;
+        int currYpos = snakeYpos;
 
         if (snakeXpos > foodX && direction == 'R')
         {
-            if (snakeYpos > foodY) direction = 'U';
-            else direction = 'D';
-            break;
+            if (snakeYpos > foodY)
+                direction = 'U';
+            else if (snakeYpos < foodY)
+                direction = 'D';
+            else
+            {
+                currYpos = snakeYpos;
+                if ((snakeYpos - 1) >= 0)
+                {
+                    direction = 'U';
+                    snakeYpos--;
+                }
+                else if ((snakeYpos + 1) < row)
+                {
+                    direction = 'D';
+                    snakeYpos++;
+                }
+            }
+            
         }
         else if (snakeXpos < foodX && direction == 'L')
         {
-            if (snakeYpos > foodY) direction = 'U';
-            else direction = 'D';
-            break;
+            if (snakeYpos > foodY)
+                direction = 'U';
+            else if (snakeYpos < foodY)
+                direction = 'D';
+            else
+            {
+                currYpos = snakeYpos;
+                if ((snakeYpos - 1) >= 0)
+                {
+                    direction = 'U';
+                    snakeYpos--;
+                }
+                else if ((snakeYpos + 1) < row)
+                {
+                    direction = 'D';
+                    snakeYpos++;
+                }
+            }
+           
         }
         else if (snakeXpos > foodX && (direction == 'D' || direction == 'U' || direction == 'L'))
         {
@@ -147,10 +217,11 @@ void snakeToFood(vector<vector<int>> &vec, int &snakeXpos, int &snakeYpos, char 
         }
 
         vec[snakeYpos][snakeXpos] = 1;
-        vec[snakeYpos][currXpos] = 0;
+        vec[currYpos][currXpos] = 0;
         printGrid(vec);
         this_thread::sleep_for(chrono::seconds(2));
-        cout << endl << endl;
+        cout << endl
+             << endl;
     }
 
     if (snakeXpos == foodX && snakeYpos == foodY)
