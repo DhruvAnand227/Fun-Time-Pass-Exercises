@@ -1,0 +1,173 @@
+#include <iostream>
+#include <unordered_map>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+
+using namespace std;
+
+// Build subject-to-faculty mapping from faculty-to-subject input
+// Also build a flat list of subjects for O(1) random access later
+void makeSubjectToFacultyMap(
+    unordered_map<string, vector<pair<string, bool>>> &subToFacMap,
+    unordered_map<string, vector<string>> &facToSubMap,
+    vector<pair<string, int>> &availableSubjects)
+{
+    for (auto i : facToSubMap)
+    {
+        for (auto j : i.second)
+        {
+            int subjectCountPerWeek;
+            cout << "Enter classes of " << j << " per week" << endl;
+            cin >> subjectCountPerWeek;
+
+            // Each subject maps to a list of faculties who can teach it
+            // Pair<facultyName, boolAssignedFlag>
+            subToFacMap[j].push_back({i.first, false});
+            // Keep subject name in flat list for random picking
+            availableSubjects.push_back({j, subjectCountPerWeek});
+        }
+    }
+}
+
+// Generate timetable with random distribution of subjects per day
+// Ensures subjects are fairly distributed across all classes in a day
+void generateTimeTable(
+    unordered_map<string, vector<pair<string, bool>>> &subToFacMap,
+    vector<vector<pair<string, string>>> &timeTable,
+    vector<pair<string, int>> &availableSubjects,
+    int days,
+    int classes)
+{
+    int index = 0; // current day index
+    while (index < days)
+    {
+        // Daily counter: {classesAssignedToday, gotExtraClassFlag}
+        unordered_map<string, pair<int, bool>> subjectCounter;
+
+        // Initialize daily counters for each subject
+        for (auto subject : subToFacMap)
+        {
+            subjectCounter[subject.first] = {0, false};
+        }
+
+        int minClassCount = classes / subjectCounter.size();
+        int extraClassCount = classes % subjectCounter.size();
+
+        int classIndex = 0; // current class slot within the day
+
+        while (classIndex < classes && !availableSubjects.empty())
+        {
+            int randomClass = rand() % availableSubjects.size();
+            string subject = availableSubjects[randomClass].first;
+            int &weeklyLeft = availableSubjects[randomClass].second;
+
+            auto &facList = subToFacMap[subject];
+
+            if (subjectCounter.size() == 0) 
+            {
+                break;
+            }
+
+            // Agar weekly quota khatam ho gaya toh skip karo
+            if (weeklyLeft <= 0)
+            {
+                availableSubjects[randomClass] = availableSubjects.back();
+                availableSubjects.pop_back();
+                continue;
+            }
+
+            for (auto &j : facList)
+            {
+                // Case 1: subject abhi daily minClassCount se kam hai
+                if (subjectCounter[subject].first < minClassCount)
+                {
+                    subjectCounter[subject].first++;
+                    timeTable[index][classIndex] = {subject, j.first};
+                    weeklyLeft--;
+                    j.second = true;
+                    break;
+                }
+                // Case 2: subject daily minClassCount par hai, but extra allow hai
+                else if ((subjectCounter[subject].first == minClassCount) &&
+                         (extraClassCount > 0) &&
+                         (subjectCounter[subject].second == false))
+                {
+                    subjectCounter[subject].first++;
+                    subjectCounter[subject].second = true;
+                    extraClassCount--;
+                    timeTable[index][classIndex] = {subject, j.first};
+                    weeklyLeft--;
+                    j.second = true;
+                    break;
+                }
+                // Case 3: daily quota khatam, retry another subject
+                else
+                {
+                    subjectCounter.erase(subject);
+                    break;
+                }
+            }
+
+            // Agar weekly quota khatam ho gaya toh subject hatao
+            if (weeklyLeft <= 0)
+            {
+                availableSubjects[randomClass] = availableSubjects.back();
+                availableSubjects.pop_back();
+            }
+
+            classIndex++; // slot fill ho gaya
+        }
+
+        index++; // next day
+    }
+}
+
+// Print timetable: only subjects per slot for simplicity
+void printTimeTable(const vector<vector<pair<string, string>>> &timeTable)
+{
+    for (int i = 0; i < timeTable.size(); i++)
+    {
+        cout << "Day " << (i + 1) << ":\n";
+        for (int j = 0; j < timeTable[i].size(); j++)
+        {
+            cout << "  " << timeTable[i][j].first          // subject
+                 << " (" << timeTable[i][j].second << ")"; // faculty
+            if (j != timeTable[i].size() - 1)
+                cout << " | "; // separator
+        }
+        cout << "\n\n";
+    }
+}
+
+int main()
+{
+    srand(time(0)); // seed RNG
+
+    // Faculty -> Subjects mapping input
+    unordered_map<string, vector<string>> facToSubMap = {
+        {"S.K.", {"OS"}},
+        {"P.K.", {"DSA"}},
+        {"A.P.", {"Maths"}},
+        {"M.J.", {"DS"}}};
+
+    // Data structures
+    unordered_map<string, vector<pair<string, bool>>> subToFacMap;
+    vector<pair<string, int>> availableSubjects;
+
+    int days = 5, classes = 5; // 5 days, 4 classes per day
+
+    // Timetable: 2D array (days x classes), each slot = {subject, faculty}
+    vector<vector<pair<string, string>>> timeTable(days, vector<pair<string, string>>(classes));
+
+    // Step 1: Build mapping and subjects list
+    makeSubjectToFacultyMap(subToFacMap, facToSubMap, availableSubjects);
+
+    // Step 2: Generate timetable using random distribution
+    generateTimeTable(subToFacMap, timeTable, availableSubjects, days, classes);
+
+    // Step 3: Print timetable
+    printTimeTable(timeTable);
+
+    return 0;
+}
