@@ -1,0 +1,247 @@
+#include <iostream>
+#include <unordered_map>
+#include <queue>
+#include <vector>
+
+using namespace std;
+
+// ===========================
+// TreeNode class definition
+// ===========================
+// Each node of the Huffman tree contains:
+// - freq: frequency of character(s)
+// - ch: character (only for leaf nodes)
+// - key: unique key used to rebuild the tree
+// - left & right: pointers to child nodes
+class TreeNode
+{
+public:
+    int freq;
+    char ch;
+    string key;
+    TreeNode *left;
+    TreeNode *right;
+
+    TreeNode(int f, char c, string k = "")
+    {
+        freq = f;
+        ch = c;
+        key = k;
+        left = right = nullptr;
+    }
+};
+
+// ==========================================================
+// Recursive DFS function to rebuild Huffman tree structure
+// ==========================================================
+// Uses the "buildTreeMap" which stores relationships of parent
+// nodes and their left-right children. It constructs the full tree
+// using recursion.
+void buildTree(TreeNode *&root, unordered_map<string, vector<pair<int, string>>> &buildTreeMap)
+{
+    string nodeKey = root->key;
+
+    // Base condition: if node key not found in map → it's a leaf node
+    if (buildTreeMap.find(nodeKey) == buildTreeMap.end())
+    {
+        return;
+    }
+
+    // Extract left and right child data (frequency and key)
+    auto leftPair = buildTreeMap[nodeKey][0];
+    auto rightPair = buildTreeMap[nodeKey][1];
+
+    // Create left child node
+    root->left = new TreeNode(leftPair.first, (leftPair.second.size() == 1 ? leftPair.second[0] : '#'), leftPair.second);
+
+    // Create right child node
+    root->right = new TreeNode(rightPair.first, (rightPair.second.size() == 1 ? rightPair.second[0] : '#'), rightPair.second);
+
+    // Recursively build left and right subtrees
+    buildTree(root->left, buildTreeMap);
+    buildTree(root->right, buildTreeMap);
+}
+
+// ==========================================================
+// Encoding function (Recursive DFS traversal)
+// ==========================================================
+// Traverses the Huffman tree and assigns binary codes to each character:
+// - '0' for left branch
+// - '1' for right branch
+// Stores all codes in 'ans' and concatenates them into 'codedString'.
+void encoding(TreeNode *&root, vector<pair<char, string>> &ans, string &code, string &codedString)
+{
+    // Base case: leaf node → store its code
+    if (!root->left && !root->right)
+    {
+        codedString += code;            // append code to final encoded string
+        ans.push_back({root->ch, code}); // store (char, code) mapping
+        return;
+    }
+
+    // Traverse left (add '0')
+    code.push_back('0');
+    encoding(root->left, ans, code, codedString);
+    code.pop_back();
+
+    // Traverse right (add '1')
+    code.push_back('1');
+    encoding(root->right, ans, code, codedString);
+    code.pop_back();
+}
+
+// ==========================================================
+// Iterative Decoding function
+// ==========================================================
+// Traverses the encoded binary string using the Huffman tree
+// to decode it back into the original characters.
+void decoding(TreeNode *root, string codedString)
+{
+    string originalString = "";
+    TreeNode *curr = root;
+
+    // Traverse each bit of the encoded string
+    for (char bit : codedString)
+    {
+        // Move left if bit = '0'
+        if (bit == '0')
+            curr = curr->left;
+        // Move right if bit = '1'
+        else
+            curr = curr->right;
+
+        // If a leaf node is reached → one character decoded
+        if (!curr->left && !curr->right)
+        {
+            originalString += curr->ch;
+            curr = root; // Restart from root for next character
+        }
+    }
+
+    cout << "Original String: " << originalString << endl;
+}
+
+// ==========================================================
+// Building the Huffman Tree using frequency table
+// ==========================================================
+// Takes input (characters & their frequencies), builds a min-heap,
+// and merges two smallest frequency nodes until only one root remains.
+// Returns the root key of the final Huffman tree.
+string makeBuildTreeMap(unordered_map<string, vector<pair<int, string>>> &buildTreeMap,
+                        int &netFreq, int &uniqueID)
+{
+    unordered_map<char, int> charFreq; // stores frequency of each character
+    priority_queue<pair<int, string>, vector<pair<int, string>>, greater<pair<int, string>>> min_pq; // min-heap for Huffman tree
+
+    char alpha = '*';
+    int freq = 0;
+    string lastKey = "";
+
+    cout << "Enter file element as # and it's frequency as -1 to exit loop" << endl
+         << endl;
+
+    // Taking user input for (character, frequency)
+    while (true)
+    {
+        cout << "Enter the alphabet or file element" << endl;
+        cin >> alpha;
+
+        cout << "Enter the frequency of: " << alpha << endl;
+        cin >> freq;
+
+        // Exit condition
+        if (alpha == '#' && freq == -1)
+        {
+            break;
+        }
+        else
+        {
+            charFreq[alpha] += freq; // accumulate frequencies
+        }
+    }
+
+    // Push all characters into min-heap as individual leaf nodes
+    for (auto &i : charFreq)
+    {
+        string leafKey(1, i.first);
+        min_pq.push({i.second, leafKey});
+    }
+
+    // Special case: only one unique character
+    if (min_pq.size() == 1)
+    {
+        auto top = min_pq.top();
+        cout << top.second << ": 0" << endl;
+        return "";
+    }
+
+    // Build Huffman tree (combine two smallest freq nodes iteratively)
+    while (min_pq.size() > 1)
+    {
+        // Pop two smallest nodes
+        auto first = min_pq.top();
+        min_pq.pop();
+
+        auto second = min_pq.top();
+        min_pq.pop();
+
+        // Create a new parent node with combined frequency
+        int sum = first.first + second.first;
+        string uniqueKey = to_string(sum) + '_' + to_string(uniqueID++);
+
+        lastKey = uniqueKey;
+        netFreq = sum;
+
+        // Push back combined node into min-heap
+        min_pq.push({sum, uniqueKey});
+
+        // Store child relationships in map for tree reconstruction
+        buildTreeMap[uniqueKey].push_back({first.first, first.second});
+        buildTreeMap[uniqueKey].push_back({second.first, second.second});
+    }
+
+    return lastKey; // return root node key
+}
+
+// ==========================================================
+// MAIN FUNCTION
+// ==========================================================
+int main()
+{
+    int netFreq = 0;
+    int uniqueID = 1;
+    string codedString = "";
+
+    unordered_map<string, vector<pair<int, string>>> buildTreeMap;
+
+    // Step 1: Create Huffman tree structure map
+    string rootKey = makeBuildTreeMap(buildTreeMap, netFreq, uniqueID);
+
+    // Edge case: no input
+    if (buildTreeMap.empty())
+    {
+        return 0;
+    }
+
+    // Step 2: Build actual Huffman tree using recursive function
+    TreeNode *root = new TreeNode(netFreq, '#', rootKey);
+    vector<pair<char, string>> ans;
+    string code = "";
+
+    buildTree(root, buildTreeMap);
+
+    // Step 3: Generate Huffman codes (encoding)
+    encoding(root, ans, code, codedString);
+
+    // Print character → code mapping
+    for (auto &i : ans)
+    {
+        cout << i.first << ": " << i.second << endl;
+    }
+
+    // Step 4: Print final encoded binary string
+    cout << "Coded String: " << codedString << endl;
+
+    // Step 5: Decode back to original string
+    decoding(root, codedString);
+}
