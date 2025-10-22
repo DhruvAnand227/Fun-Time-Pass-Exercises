@@ -1,0 +1,310 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+// ============================ REGISTER TEAMS ============================
+// Function to register teams from user input
+// - Asks the user to enter total number of teams
+// - Takes unique team names as input
+// - Converts names to uppercase for uniformity
+// - Assigns each team a unique index and random initial strength (1–10)
+vector<string> registerTeam(int &totalTeams, int &uniqueIndex, unordered_map<string, pair<int, int>> &teamToIndex)
+{
+    vector<string> teams;
+    string teamName;
+    int number = 1;
+
+    cout << "Enter the total number of teams:" << endl;
+    cin >> totalTeams;
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+    while (number <= totalTeams)
+    {
+        cout << "Enter the name of team number " << number++ << ": ";
+        getline(cin, teamName);
+
+        // Handle empty input
+        if (teamName.empty())
+        {
+            cout << "Team name can't be empty, try again!\n";
+            number--;
+            continue;
+        }
+
+        // Convert team name to uppercase
+        transform(teamName.begin(), teamName.end(), teamName.begin(),
+                  [](unsigned char c)
+                  { return std::toupper(c); });
+
+        // Prevent duplicate team registration
+        if (teamToIndex.count(teamName))
+        {
+            cout << "Team already registered! Enter a different team" << endl;
+            number--;
+            continue;
+        }
+
+        // Store team name and initialize details
+        teams.push_back(teamName);
+        teamToIndex[teamName].first = uniqueIndex++;      // Assign unique index
+        teamToIndex[teamName].second = 1 + (rand() % 10); // Random strength (1–10)
+    }
+
+    return teams;
+}
+
+// ============================ PRINT TEAMS ============================
+// Prints all the registered teams in an organized format
+void printRegisteredTeams(vector<string> teams)
+{
+    cout << "=====" << "     All Registered Teams     =====" << endl
+         << endl;
+
+    for (int i = 0; i < teams.size(); i++)
+    {
+        cout << " Team " << (i + 1) << ": " << teams[i] << endl;
+    }
+}
+
+// ============================ RANDOMIZE TEAMS ============================
+// Randomly shuffles team order to make the tournament fair
+void createRandomTeams(vector<string> &teams)
+{
+    int n = teams.size();
+
+    for (int i = 0; i < n * 2; i++)
+    {
+        int firstRandom = rand() % n;
+        int secondRandom = rand() % n;
+
+        swap(teams[firstRandom], teams[secondRandom]);
+    }
+}
+
+// ============================ CHANCE OF WINNING ============================
+// Determines the winner between two teams based on their strength
+// - Each team has a probability proportional to its strength
+// - Random factors influence small variations
+// - Winning team gains strength, losing team loses some
+// Returns true if the first team wins, false otherwise
+bool chanceOfWinning(unordered_map<string, pair<int, int>> &teamToIndex, string firstTeamName, string secondTeamName)
+{
+    int firstTeamStrength = teamToIndex[firstTeamName].second;
+    int secondTeamStrength = teamToIndex[secondTeamName].second;
+
+    int totalStrength = firstTeamStrength + secondTeamStrength;
+    int randomNumber = rand() % 101;
+
+    int chanceOfFirstWin = (firstTeamStrength * 100) / totalStrength;
+    int randomStrengthIncrement = 1 + (rand() % 3);
+    int randomStrengthDecrement = 1 + (rand() % 2);
+
+    // If first team wins
+    if (randomNumber <= chanceOfFirstWin)
+    {
+        if (teamToIndex[firstTeamName].second + randomStrengthIncrement < 100)
+        {
+            teamToIndex[firstTeamName].second += randomStrengthIncrement;
+        }
+
+        // Decrease strength of losing team slightly
+        teamToIndex[secondTeamName].second = max(1, teamToIndex[secondTeamName].second - randomStrengthDecrement);
+        return true;
+    }
+
+    // If second team wins
+    if (teamToIndex[secondTeamName].second + randomStrengthIncrement < 100)
+    {
+        teamToIndex[secondTeamName].second += randomStrengthIncrement;
+    }
+
+    teamToIndex[firstTeamName].second = max(1, teamToIndex[firstTeamName].second - randomStrengthDecrement);
+    return false;
+}
+
+// ============================ START MATCH ============================
+// Simulates one full round of matches
+// - Matches teams pairwise
+// - Gives a 'bye' if odd number of teams
+// - Updates match results and strengths
+// - Records full match history for analysis
+void startMatch(queue<string> &teamQueue,
+                vector<vector<pair<bool, vector<string>>>> &matchHistory,
+                unordered_map<string, pair<int, int>> &teamToIndex)
+{
+    queue<string> qualifiedTeams;
+    int matchNumber = 1;
+    string byeTeam = "";
+
+    // Handle case when there is an odd number of teams
+    if (teamQueue.size() % 2 == 1)
+    {
+        byeTeam = teamQueue.back();
+        qualifiedTeams.push(byeTeam);
+    }
+
+    while (teamQueue.size() > 1)
+    {
+        cout << "Match Number: " << matchNumber++ << endl
+             << endl;
+
+        int randomScore = 1 + (rand() % 51);
+        string winnerTeam = "";
+
+        // Select two teams for the match
+        string firstTeam = teamQueue.front();
+        teamQueue.pop();
+        string secondTeam = teamQueue.front();
+        teamQueue.pop();
+
+        // Display match info
+        cout << firstTeam << " Vs " << secondTeam << endl
+             << endl;
+        cout << "Strength of " << firstTeam << " is " << teamToIndex[firstTeam].second << endl;
+        cout << "Strength of " << secondTeam << " is " << teamToIndex[secondTeam].second << endl;
+
+        int firstTeamIndex = teamToIndex[firstTeam].first;
+        int secondTeamIndex = teamToIndex[secondTeam].first;
+
+        // Decide the winner
+        int winner = chanceOfWinning(teamToIndex, firstTeam, secondTeam);
+
+        // ================== Update Match History ==================
+        if (winner == 1)
+        {
+            cout << firstTeam << " won! by " << randomScore << " runs" << endl
+                 << endl;
+            qualifiedTeams.push(firstTeam);
+
+            // Record win for first team
+            matchHistory[firstTeamIndex][secondTeamIndex].first = true;
+            matchHistory[firstTeamIndex][secondTeamIndex].second.push_back(firstTeam + " won! by " + to_string(randomScore) + " runs " + "with " + secondTeam);
+
+            // Record loss for second team
+            matchHistory[secondTeamIndex][firstTeamIndex].first = true;
+            matchHistory[secondTeamIndex][firstTeamIndex].second.push_back(secondTeam + " lose! by " + to_string(randomScore) + " runs " + "with " + firstTeam);
+        }
+        else
+        {
+            cout << secondTeam << " won! by " << randomScore << " runs" << endl
+                 << endl;
+            qualifiedTeams.push(secondTeam);
+
+            // Record win for second team
+            matchHistory[secondTeamIndex][firstTeamIndex].first = true;
+            matchHistory[secondTeamIndex][firstTeamIndex].second.push_back(secondTeam + " won! by " + to_string(randomScore) + " runs " + "with " + firstTeam);
+
+            // Record loss for first team
+            matchHistory[firstTeamIndex][secondTeamIndex].first = true;
+            matchHistory[firstTeamIndex][secondTeamIndex].second.push_back(firstTeam + " lose! by " + to_string(randomScore) + " runs " + "with " + secondTeam);
+        }
+
+        // If one team remains, give bye to the pre-decided team
+        if (teamQueue.size() == 1)
+        {
+            cout << byeTeam << " gets a bye to next round!" << endl
+                 << endl;
+            teamQueue.pop();
+        }
+    }
+
+    // Move qualified teams to next round
+    while (!qualifiedTeams.empty())
+    {
+        teamQueue.push(qualifiedTeams.front());
+        qualifiedTeams.pop();
+    }
+}
+
+// ============================ COMPUTE ROUNDS ============================
+// Calculates how many rounds will be played
+// e.g., 8 teams -> 3 rounds (Quarter, Semi, Final)
+int computeRounds(vector<string> teams)
+{
+    if (teams.empty())
+        return 0;
+
+    int n = teams.size();
+    int power = 0;
+
+    while (n > 1)
+    {
+        n = (n + 1) / 2;
+        power++;
+    }
+
+    return power;
+}
+
+// ============================ MAIN FUNCTION ============================
+// Controls the overall tournament flow
+// - Registers teams
+// - Randomizes them
+// - Runs multiple rounds until the final winner is decided
+// - Displays complete match history
+int main()
+{
+    srand(time(0));
+    int uniqueIndex = 0;
+    int totalTeams;
+    queue<string> teamQueue;
+
+    // Map: teamName -> {index, strength}
+    unordered_map<string, pair<int, int>> teamToIndex;
+
+    // Step 1: Register all teams
+    vector<string> teams = registerTeam(totalTeams, uniqueIndex, teamToIndex);
+
+    // Step 2: Initialize match history matrix
+    vector<vector<pair<bool, vector<string>>>> matchHistory(
+        totalTeams,
+        vector<pair<bool, vector<string>>>(totalTeams, {false, {}}));
+
+    // Step 3: Shuffle teams randomly for fairness
+    createRandomTeams(teams);
+
+    // Step 4: Push teams into the match queue
+    for (auto &t : teams)
+    {
+        teamQueue.push(t);
+    }
+
+    // Step 5: Print all registered teams
+    printRegisteredTeams(teams);
+    cout << endl;
+
+    // Step 6: Compute total number of rounds needed
+    int power = computeRounds(teams);
+
+    // Step 7: Play matches round by round
+    int round = 1;
+    for (int i = 0; i < power; i++)
+    {
+        cout << "Round Number: " << round++ << endl
+             << endl;
+        startMatch(teamQueue, matchHistory, teamToIndex);
+    }
+
+    // Step 8: Display the tournament winner
+    if (teamQueue.size() == 1)
+    {
+        cout << "Tournament Winner: " << teamQueue.front() << endl;
+    }
+
+    cout << endl
+         << endl;
+
+    // Step 9: Print full match history matrix
+    for (int i = 0; i < matchHistory.size(); i++)
+    {
+        for (int j = 0; j < matchHistory[i].size(); j++)
+        {
+            cout << matchHistory[i][j].first << " ";
+            for (auto k : matchHistory[i][j].second)
+            {
+                cout << k << "   ";
+            }
+            cout << endl;
+        }
+        cout << endl;
+    }
+}
